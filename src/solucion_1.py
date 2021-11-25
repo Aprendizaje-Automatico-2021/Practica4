@@ -19,7 +19,7 @@ def matrix_forward_propagate(X, thetas1, thetas2):
     # (5k, 26) * (26, 10) = (5K, 10)
     Z3 = np.matmul(A2, thetas2.T)
     A3 = sigmoide_fun(Z3)
-    return A3
+    return A1, A2, A3
     
 def J(theta1, theta2, X, y, k = 10):
     """
@@ -31,7 +31,7 @@ def J(theta1, theta2, X, y, k = 10):
     total = 0
     
     # Para cada imagen
-    h = matrix_forward_propagate(X, theta1, theta2) # (10, )
+    a1, a2, h = matrix_forward_propagate(X, theta1, theta2) # (10, )
     for i in range(m):
         sum1 = -y[i] * np.log(h[i] + 0.000001)
         sum2 = (1 - y[i]) * (np.log(1 - h[i] + 0.00001))
@@ -50,6 +50,37 @@ def regularization(thetas1, thetas2, m, lamb):
     sum2 = np.sum(np.power(thetas2, 2))
     total = sum1 + sum2
     return (lamb / (2 * m)) * total
+
+def backprop (params_rn, num_entradas, num_ocultas, num_etiquetas, X, y , reg, num_layers = 3):
+    """
+    ah
+    """
+    Theta1 = np.reshape(params_rn[:num_ocultas * ( num_entradas + 1)], (num_ocultas, (num_entradas + 1)))
+    Theta2 = np.reshape(params_rn[num_ocultas * ( num_entradas + 1):], (num_etiquetas, (num_ocultas + 1)))
+
+    delta1 = np.zeros((Theta1.shape[0], Theta1.shape[1]))
+    delta2 = np.zeros((Theta2.shape[0], Theta2.shape[1]))
+
+    A1, A2, H = matrix_forward_propagate(X, Theta1, Theta2)
+    m = X.shape[0]
+    for t in range(m):
+        a1t = A1[t, :]
+        a2t = A2[t, :]
+        ht = H[t, :]
+        yt = y[t]
+
+        d3t = ht - yt   # Este es el error comparando el coste obtenido con el que deberia obtenerse
+        d2t = np.dot(Theta2.T, d3t) * np.dot(a2t, (1-a2t))
+        delta1 = delta1 + np.dot(d2t[1:, np.newaxis], a1t[np.newaxis, :])
+        delta2 = delta2 + np.dot(d3t[:, np.newaxis], a2t[np.newaxis, :])
+
+    delta1 /= m
+    delta2 /= m
+
+    gradient = np.concatenate((delta1.ravel(), delta2.ravel()))
+
+    return gradient
+
 
 def main():
     data = loadmat ('./src/ex4data1.mat')
@@ -81,13 +112,12 @@ def main():
     print("Coste regularizado: ", cost)
 
     # Parte 2 - Calculo del gradiente
-    num_entradas = 400
-    num_ocultas = 25
-    # Necesitamos desplegar todos los parametros de la red neuronal
-    # en un array unidimensional param_rn (?)
-    # Reconstrucción de t1 y t2
+    #  Reconstruir params_rn en funcion de las thetas
+    params_rn= np.concatenate((thetas1.ravel(),  thetas2.ravel()))
+    cost, params_rn = backprop(params_rn, 400, 25, 10, X, y, lamb)
 
-    t1 = np.reshape(params_rn[:num_ocultas * (num_entradas + 1)], (num_ocultas, (num_entradas + 1)))
+    print("Coste segunda parte: ", cost)
+
     # Display Part
     sample = np.random.choice(X.shape[0], 100)
     newMat = np.zeros((100,400))
